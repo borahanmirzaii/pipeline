@@ -120,21 +120,34 @@ class AssetAPI:
             "image_type": "photo"
         }
 
-        response = requests.get(url, params=params)
-        if response.status_code == 200:
+        try:
+            response = requests.get(url, params=params)
+            response.raise_for_status()
             data = response.json()
-            return [{
-                "id": image["id"],
-                "url": image["largeImageURL"],
-                "thumbnail": image.get("previewURL"),
-                "photographer": image.get("user"),
-                "source": "pixabay",
-                "type": "image",
-                "width": image.get("imageWidth"),
-                "height": image.get("imageHeight"),
-                "tags": image.get("tags", "").split(", ")
-            } for image in data.get("hits", [])]
-        return []
+
+            results = []
+            for image in data.get("hits", []):
+                tags = image.get("tags", "")
+                asset_id = image.get("id")
+                asset_url = image.get("largeImageURL")
+                if not asset_id or not asset_url:
+                    continue
+
+                results.append({
+                    "id": asset_id,
+                    "url": asset_url,
+                    "thumbnail": image.get("previewURL"),
+                    "photographer": image.get("user"),
+                    "source": "pixabay",
+                    "type": "image",
+                    "width": image.get("imageWidth"),
+                    "height": image.get("imageHeight"),
+                    "tags": [tag.strip() for tag in tags.split(",") if tag.strip()]
+                })
+            return results
+        except (requests.exceptions.RequestException, ValueError):
+            # Consider logging the error
+            return []
 
     def search_unsplash_images(self, query: str, per_page: int = 15) -> List[Dict]:
         """Search Unsplash for photography assets"""
@@ -142,22 +155,35 @@ class AssetAPI:
         headers = {"Authorization": f"Client-ID {self.unsplash_key}"}
         params = {"query": query, "per_page": per_page}
 
-        response = requests.get(url, headers=headers, params=params)
-        if response.status_code == 200:
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
             data = response.json()
-            return [{
-                "id": photo["id"],
-                "url": photo["urls"]["raw"],
-                "thumbnail": photo["urls"].get("small"),
-                "photographer": photo["user"]["name"],
-                "source": "unsplash",
-                "type": "image",
-                "width": photo.get("width"),
-                "height": photo.get("height"),
-                "license": "Unsplash License",
-                "links": photo.get("links", {})
-            } for photo in data.get("results", [])]
-        return []
+
+            results = []
+            for photo in data.get("results", []):
+                urls = photo.get("urls", {})
+                user = photo.get("user", {})
+                asset_id = photo.get("id")
+                asset_url = urls.get("raw")
+                if not asset_id or not asset_url:
+                    continue
+                results.append({
+                    "id": asset_id,
+                    "url": asset_url,
+                    "thumbnail": urls.get("small"),
+                    "photographer": user.get("name"),
+                    "source": "unsplash",
+                    "type": "image",
+                    "width": photo.get("width"),
+                    "height": photo.get("height"),
+                    "license": "Unsplash License",
+                    "links": photo.get("links", {})
+                })
+            return results
+        except (requests.exceptions.RequestException, ValueError):
+            # Consider logging the error
+            return []
 
     def search_pexels_videos(self, query: str, per_page: int = 10) -> List[Dict]:
         """Search Pexels for short-form videos"""
@@ -165,18 +191,34 @@ class AssetAPI:
         headers = {"Authorization": self.pexels_key}
         params = {"query": query, "per_page": per_page}
 
-        response = requests.get(url, headers=headers, params=params)
-        if response.status_code == 200:
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
             data = response.json()
-            return [{
-                "id": video["id"],
-                "url": video["video_files"][0]["link"],
-                "thumbnail": video["image"],
-                "duration": video.get("duration"),
-                "source": "pexels",
-                "type": "video"
-            } for video in data.get("videos", [])]
-        return []
+
+            results = []
+            for video in data.get("videos", []):
+                video_files = video.get("video_files") or []
+                if not video_files:
+                    continue
+
+                primary_file = video_files[0]
+                asset_id = video.get("id")
+                asset_url = primary_file.get("link")
+                if not asset_id or not asset_url:
+                    continue
+                results.append({
+                    "id": asset_id,
+                    "url": asset_url,
+                    "thumbnail": video.get("image"),
+                    "duration": video.get("duration"),
+                    "source": "pexels",
+                    "type": "video"
+                })
+            return results
+        except (requests.exceptions.RequestException, ValueError):
+            # Consider logging the error
+            return []
 
     def search_pixabay_videos(self, query: str, per_page: int = 10) -> List[Dict]:
         """Search Pixabay for video content"""

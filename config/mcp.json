@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "asset-search": {
+      "command": "python",
+      "args": ["-m", "uvx", "run", "asset_mcp_server.py"],
+      "cwd": "${workspaceFolder}/examples/python",
+      "env": {
+        "PEXELS_API_KEY": "${PEXELS_API_KEY}",
+        "PIXABAY_API_KEY": "${PIXABAY_API_KEY}",
+        "UNSPLASH_ACCESS_KEY": "${UNSPLASH_ACCESS_KEY}",
+        "FREESOUND_API_KEY": "${FREESOUND_API_KEY}",
+        "GIPHY_API_KEY": "${GIPHY_API_KEY}"
+      },
+      "disabled": false,
+      "alwaysAllow": [
+        "search_images",
+        "search_videos",
+        "search_audio",
+        "search_gifs"
+      ]
+    }
+  }
+}

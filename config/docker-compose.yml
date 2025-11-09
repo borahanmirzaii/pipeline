@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  # MCP Server for asset management
+  mcp-server:
+    build:
+      context: ../examples/python
+      dockerfile: Dockerfile
+    container_name: asset-mcp-server
+    ports:
+      - "8080:8080"
+    environment:
+      - PEXELS_API_KEY=${PEXELS_API_KEY}
+      - PIXABAY_API_KEY=${PIXABAY_API_KEY}
+      - UNSPLASH_ACCESS_KEY=${UNSPLASH_ACCESS_KEY}
+      - FREESOUND_API_KEY=${FREESOUND_API_KEY}
+      - GIPHY_API_KEY=${GIPHY_API_KEY}
+    volumes:
+      - ./cache:/app/cache
+      - ./assets:/app/assets
+      - ../examples/python:/app
+    restart: unless-stopped
+    networks:
+      - asset-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Next.js application
+  nextjs-app:
+    build:
+      context: ../examples/nextjs
+      dockerfile: Dockerfile
+    container_name: asset-nextjs-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_KEY}
+      - PEXELS_API_KEY=${PEXELS_API_KEY}
+      - PIXABAY_API_KEY=${PIXABAY_API_KEY}
+      - UNSPLASH_ACCESS_KEY=${UNSPLASH_ACCESS_KEY}
+      - GIPHY_API_KEY=${GIPHY_API_KEY}
+      - MCP_SERVER_URL=http://mcp-server:8080
+    depends_on:
+      - mcp-server
+    restart: unless-stopped
+    networks:
+      - asset-network
+    volumes:
+      - ../examples/nextjs:/app
+      - /app/node_modules
+      - /app/.next
+
+  # Asset processor (background jobs)
+  asset-processor:
+    build:
+      context: ../examples/python
+      dockerfile: Dockerfile.processor
+    container_name: asset-processor
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - PEXELS_API_KEY=${PEXELS_API_KEY}
+      - PIXABAY_API_KEY=${PIXABAY_API_KEY}
+      - UNSPLASH_ACCESS_KEY=${UNSPLASH_ACCESS_KEY}
+      - FREESOUND_API_KEY=${FREESOUND_API_KEY}
+      - GIPHY_API_KEY=${GIPHY_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./assets:/app/assets
+      - ../examples/python:/app
+    depends_on:
+      - mcp-server
+    restart: unless-stopped
+    networks:
+      - asset-network
+
+  # Redis for caching (optional but recommended for production)
+  redis:
+    image: redis:7-alpine
+    container_name: asset-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - asset-network
+    command: redis-server --appendonly yes
+
+  # Nginx reverse proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: asset-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - nextjs-app
+      - mcp-server
+    restart: unless-stopped
+    networks:
+      - asset-network
+
+networks:
+  asset-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local

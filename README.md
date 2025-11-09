@@ -95,20 +95,33 @@ class AssetAPI:
         headers = {"Authorization": self.pexels_key}
         params = {"query": query, "per_page": per_page}
 
-        response = requests.get(url, headers=headers, params=params)
-        if response.status_code == 200:
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
             data = response.json()
-            return [{
-                "id": photo["id"],
-                "url": photo["src"]["original"],
-                "thumbnail": photo["src"]["medium"],
-                "photographer": photo["photographer"],
-                "source": "pexels",
-                "type": "image",
-                "width": photo["width"],
-                "height": photo["height"]
-            } for photo in data.get("photos", [])]
-        return []
+
+            results = []
+            for photo in data.get("photos", []):
+                sources = photo.get("src", {})
+                asset_id = photo.get("id")
+                asset_url = sources.get("original")
+                if not asset_id or not asset_url:
+                    continue
+
+                results.append({
+                    "id": asset_id,
+                    "url": asset_url,
+                    "thumbnail": sources.get("medium"),
+                    "photographer": photo.get("photographer"),
+                    "source": "pexels",
+                    "type": "image",
+                    "width": photo.get("width"),
+                    "height": photo.get("height")
+                })
+            return results
+        except (requests.exceptions.RequestException, ValueError):
+            # Consider logging the error
+            return []
 
     def search_pixabay_images(self, query: str, per_page: int = 15) -> List[Dict]:
         """Search Pixabay for still images and illustrations"""
@@ -228,19 +241,33 @@ class AssetAPI:
             "q": query,
             "per_page": per_page
         }
-        
-        response = requests.get(url, params=params)
-        if response.status_code == 200:
+
+        try:
+            response = requests.get(url, params=params)
+            response.raise_for_status()
             data = response.json()
-            return [{
-                "id": video["id"],
-                "url": video["videos"]["large"]["url"],
-                "thumbnail": video["userImageURL"],
-                "duration": video["duration"],
-                "source": "pixabay",
-                "type": "video"
-            } for video in data.get("hits", [])]
-        return []
+
+            results = []
+            for video in data.get("hits", []):
+                video_variants = video.get("videos", {})
+                large_variant = video_variants.get("large", {})
+                asset_id = video.get("id")
+                asset_url = large_variant.get("url")
+                if not asset_id or not asset_url:
+                    continue
+
+                results.append({
+                    "id": asset_id,
+                    "url": asset_url,
+                    "thumbnail": video.get("userImageURL"),
+                    "duration": video.get("duration"),
+                    "source": "pixabay",
+                    "type": "video"
+                })
+            return results
+        except (requests.exceptions.RequestException, ValueError):
+            # Consider logging the error
+            return []
     
     def search_freesound(self, query: str, max_results: int = 10) -> List[Dict]:
         """Search Freesound for audio files"""

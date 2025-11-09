@@ -278,21 +278,34 @@ class AssetAPI:
             "page_size": max_results,
             "fields": "id,name,tags,duration,license,previews"
         }
-        
-        response = requests.get(url, params=params)
-        if response.status_code == 200:
+
+        try:
+            response = requests.get(url, params=params)
+            response.raise_for_status()
             data = response.json()
-            return [{
-                "id": result["id"],
-                "name": result["name"],
-                "preview_url": result["previews"]["preview-hq-mp3"],
-                "duration": result["duration"],
-                "license": result["license"],
-                "source": "freesound",
-                "type": "audio"
-            } for result in data.get("results", [])]
-        return []
-    
+
+            results = []
+            for result in data.get("results", []):
+                previews = result.get("previews", {})
+                asset_id = result.get("id")
+                asset_url = previews.get("preview-hq-mp3")
+                if not asset_id or not asset_url:
+                    continue
+
+                results.append({
+                    "id": asset_id,
+                    "name": result.get("name"),
+                    "preview_url": asset_url,
+                    "duration": result.get("duration"),
+                    "license": result.get("license"),
+                    "source": "freesound",
+                    "type": "audio"
+                })
+            return results
+        except (requests.exceptions.RequestException, ValueError):
+            # Consider logging the error
+            return []
+
     def search_giphy_gifs(self, query: str, limit: int = 25) -> List[Dict]:
         """Search Giphy for GIFs"""
         url = "https://api.giphy.com/v1/gifs/search"
@@ -302,19 +315,34 @@ class AssetAPI:
             "limit": limit,
             "rating": "g"
         }
-        
-        response = requests.get(url, params=params)
-        if response.status_code == 200:
+
+        try:
+            response = requests.get(url, params=params)
+            response.raise_for_status()
             data = response.json()
-            return [{
-                "id": gif["id"],
-                "url": gif["images"]["original"]["url"],
-                "thumbnail": gif["images"]["preview_gif"]["url"],
-                "title": gif["title"],
-                "source": "giphy",
-                "type": "gif"
-            } for gif in data.get("data", [])]
-        return []
+
+            results = []
+            for gif in data.get("data", []):
+                images = gif.get("images", {})
+                original = images.get("original", {})
+                preview = images.get("preview_gif", {})
+                asset_id = gif.get("id")
+                asset_url = original.get("url")
+                if not asset_id or not asset_url:
+                    continue
+
+                results.append({
+                    "id": asset_id,
+                    "url": asset_url,
+                    "thumbnail": preview.get("url"),
+                    "title": gif.get("title"),
+                    "source": "giphy",
+                    "type": "gif"
+                })
+            return results
+        except (requests.exceptions.RequestException, ValueError):
+            # Consider logging the error
+            return []
 ```
 
 ### Local SQLite Caching Layer

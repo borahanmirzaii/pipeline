@@ -94,7 +94,7 @@ class AssetAPI:
         url = "https://api.pexels.com/v1/search"
         headers = {"Authorization": self.pexels_key}
         params = {"query": query, "per_page": per_page}
-        
+
         response = requests.get(url, headers=headers, params=params)
         if response.status_code == 200:
             data = response.json()
@@ -109,7 +109,75 @@ class AssetAPI:
                 "height": photo["height"]
             } for photo in data.get("photos", [])]
         return []
-    
+
+    def search_pixabay_images(self, query: str, per_page: int = 15) -> List[Dict]:
+        """Search Pixabay for still images and illustrations"""
+        url = "https://pixabay.com/api/"
+        params = {
+            "key": self.pixabay_key,
+            "q": query,
+            "per_page": per_page,
+            "image_type": "photo"
+        }
+
+        response = requests.get(url, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            return [{
+                "id": image["id"],
+                "url": image["largeImageURL"],
+                "thumbnail": image.get("previewURL"),
+                "photographer": image.get("user"),
+                "source": "pixabay",
+                "type": "image",
+                "width": image.get("imageWidth"),
+                "height": image.get("imageHeight"),
+                "tags": image.get("tags", "").split(", ")
+            } for image in data.get("hits", [])]
+        return []
+
+    def search_unsplash_images(self, query: str, per_page: int = 15) -> List[Dict]:
+        """Search Unsplash for photography assets"""
+        url = "https://api.unsplash.com/search/photos"
+        headers = {"Authorization": f"Client-ID {self.unsplash_key}"}
+        params = {"query": query, "per_page": per_page}
+
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            return [{
+                "id": photo["id"],
+                "url": photo["urls"]["raw"],
+                "thumbnail": photo["urls"].get("small"),
+                "photographer": photo["user"]["name"],
+                "source": "unsplash",
+                "type": "image",
+                "width": photo.get("width"),
+                "height": photo.get("height"),
+                "license": "Unsplash License",
+                "links": photo.get("links", {})
+            } for photo in data.get("results", [])]
+        return []
+
+    def search_pexels_videos(self, query: str, per_page: int = 10) -> List[Dict]:
+        """Search Pexels for short-form videos"""
+        url = "https://api.pexels.com/videos/search"
+        headers = {"Authorization": self.pexels_key}
+        params = {"query": query, "per_page": per_page}
+
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            return [{
+                "id": video["id"],
+                "url": video["video_files"][0]["link"],
+                "thumbnail": video["image"],
+                "duration": video.get("duration"),
+                "source": "pexels",
+                "type": "video"
+            } for video in data.get("videos", [])]
+        return []
+
     def search_pixabay_videos(self, query: str, per_page: int = 10) -> List[Dict]:
         """Search Pixabay for video content"""
         url = "https://pixabay.com/api/videos/"

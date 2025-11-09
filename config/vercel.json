@@ -1,0 +1,79 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "outputDirectory": ".next",
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "@supabase-url",
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase-service-key",
+    "PEXELS_API_KEY": "@pexels-api-key",
+    "PIXABAY_API_KEY": "@pixabay-api-key",
+    "UNSPLASH_ACCESS_KEY": "@unsplash-access-key",
+    "FREESOUND_API_KEY": "@freesound-api-key",
+    "GIPHY_API_KEY": "@giphy-api-key"
+  },
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  },
+  "images": {
+    "domains": [
+      "images.pexels.com",
+      "videos.pexels.com",
+      "pixabay.com",
+      "images.unsplash.com",
+      "media.giphy.com",
+      "freesound.org"
+    ],
+    "remotePatterns": [
+      {
+        "protocol": "https",
+        "hostname": "**.pexels.com"
+      },
+      {
+        "protocol": "https",
+        "hostname": "**.pixabay.com"
+      },
+      {
+        "protocol": "https",
+        "hostname": "**.unsplash.com"
+      },
+      {
+        "protocol": "https",
+        "hostname": "**.giphy.com"
+      },
+      {
+        "protocol": "https",
+        "hostname": "**.freesound.org"
+      }
+    ],
+    "formats": ["image/avif", "image/webp"],
+    "minimumCacheTTL": 60
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "s-maxage=3600, stale-while-revalidate"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/cache-cleanup",
+      "schedule": "0 2 * * *"
+    }
+  ]
+}
